@@ -1,0 +1,138 @@
+1. Extracting values from schema: we already have a pre defined schema file ready named as 'schema_training.json' from which the  values are extracted and saved in the variables.
+2. the regex pattern is defined to validate filename (['wafer']+['\_'']+[\d_]+[\d]+\.csv)
+3.Then we validate the name of the training csv files as per given name in the schema!
+                                 Regex pattern is used to do the validation.If name format do not match the file is moved
+                                 to Bad Raw Data folder else in Good raw data.
+
+4. Then we validate the number of columns in the csv files.
+                                       It is should be same as given in the schema file.
+                                       If not same file is not suitable for processing and thus is moved to Bad Raw Data folder.
+                                       If the column number matches, file is kept in Good Raw Data for processing.
+                                      The csv file is missing the first column name, this function changes the missing name to "Wafer".
+
+5. then we validate if any column in the csv file has all values missing.
+                                               If all the values are missing, the file is not suitable for processing.
+                                               SUch files are moved to bad raw data.
+
+
+DATA TRANFORMATION
+
+6. Then we replace the missing values in columns with "NULL" to
+                                                        store in the table. We are using substring in the first column to
+                                                        keep only "Integer" data for ease up the loading.
+                                                        This column is anyways going to be removed during training.
+
+
+
+
+
+7. Then we create a table in the database(named training) which will be used to insert the Good data after raw data validation 
+
+8. Then we insert the Good data files from the Good_Raw folder into the
+                                            above created table.
+
+9.Then we delete the directory made  to store the Good Data
+                                                          after loading the data in the table. Once the good files are
+                                                          loaded in the DB,deleting the directory ensures space optimization. 
+
+10. Next step deletes the directory made  to store the Bad Data
+                                                          after moving the data in an archive folder. We archive the bad
+                                                          files to send them back to the client for invalid data issue.
+
+11. Then we export the data in GoodData table as a CSV file. in a given location (Training_FileFromDB/InputFile.csv)
+      
+
+
+
+----------------------------------------------------------------VALIDATION PART DONE-------------------------------------------------------------------------------------------------------
+ 
+----------------------------------------------------------------STARTING TRAINING PART----------------------------------------------------------------------------------
+                    
+12. Read the data from input.csv which we saved in the last step
+
+13. Some data preprocessing- remove the 'Wafer' column from the  above pandas dataframe as it doesn't contribute to prediction.
+			   - separate the features and a Label Coulmns and save in the variables X and Y,
+			   - check whether there are null values present in the pandas Dataframe or not.
+			   - make a new dataframe with columns ['column' , 'missing values count'] and save it to 'preprocessing_data/null_values.csv' having the no.
+				of missing values in each columns
+			   - if the missing values are found: -- replace all the missing values in the Dataframe using KNN Imputer (using 3 nearest neighbors)
+			   - check further which columns do not contribute to predictions
+            		   - if the standard deviation for a column is zero, it means that the column has constant values
+            		       and they are giving the same output both for good and bad sensors
+                                return the list of such columns to drop
+			   - drop the columns obtained above and return the cleaned data
+			   
+
+------------------------------------------------------------------CLUSTERING APPROACH and training data----------------------------------------------------------------------------------
+
+14. -save the plot (elbow plot) to decide the optimum number of clusters to the file  (saved at 'preprocessing_data/K-Means_Elbow.PNG')
+    -find the point of maximum curvature on a line (basically the knee of plot) using Knee locater function
+    -Create a new dataframe consisting of the cluster information.
+    -get the unique clusters from our dataset
+    -parse all the clusters and look for the best ML algorithm to fit on individual cluster	
+                  - perform test train split (test_size=1/3)
+		  -make a class to find the best model based on the best auc score(after checking on the xgboost and randomforest)
+		  
+
+
+------------------------------------------------------------------DONE WITH THE TRAINING--------------------------------------------------------------------------------
+
+------------------------------------------------------------------STARTING PREDICTION------------------------------------------------------------------------------------------------------------------------------------
+
+15. Make a html page for user interface and save the file in templates folder
+16. validation of files: -extract all the relevant information from the pre-defined "Schema" file
+			 -define regex based on the "FileName" given in "Schema" file.
+                           This Regex is used to validate the filename of the prediction data.
+			 -validate the name of the prediction csv file as per given name in the schema!
+             			Regex pattern is used to do the validation.If name format do not match the file is moved
+             			to Bad Raw Data folder else in Good raw data.
+			 - validate the number of columns in the csv files.
+                                 It is should be same as given in the schema file.
+                                 If not same file is not suitable for processing and thus is moved to Bad Raw Data folder.
+                                 If the column number matches, file is kept in Good Raw Data for processing.
+                                The csv file is missing the first column name, this function changes the missing name to "Wafer"
+			 - validate if any column in the csv file has all values missing.
+                                               If all the values are missing, the file is not suitable for processing.
+                                               SUch files are moved to bad raw data.
+			 
+17. Data tranformation: -  replace the missing values in columns with "NULL" to
+                                               store in the table. We are using substring in the first column to
+                                               keep only "Integer" data for ease up the loading.
+                                               This column is anyways going to be removed during prediction.
+
+			- create a table in the given database which will be used to insert the Good data after raw data validation
+			- insert the Good data files from the Good_Raw folder into the
+                                                    above created table
+			-Description:delete the directory made to store the Good Data
+              			after loading the data in the table. Once the good files are
+              			loaded in the DB,deleting the directory ensures space optimization.
+			-delete the directory made  to store the Bad Data
+              			after moving the data in an archive folder. We archive the bad
+              			files to send them back to the client for invalid data issue.
+			-export the data in GoodData table as a CSV file. in a given location.
+                                                    above created .(PredictionFilefromDB)
+
+18. delete the existing prediction file from last run
+19. Load the data from 'Prediction_FileFromDB/InputFile.csv'
+20. Some data preprocessing- remove the 'Wafer' column from the  above pandas dataframe as it doesn't contribute to prediction.
+			   - separate the features and a Label Coulmns and save in the variables X and Y,
+			   - check whether there are null values present in the pandas Dataframe or not.
+			   - make a new dataframe with columns ['column' , 'missing values count'] and save it to 'preprocessing_data/null_values.csv' having the no.
+				of missing values in each columns
+			   - if the missing values are found: -- replace all the missing values in the Dataframe using KNN Imputer (using 3 nearest neighbors)
+			   - check further which columns do not contribute to predictions
+            		   - if the standard deviation for a column is zero, it means that the column has constant values
+            		       and they are giving the same output both for good and bad sensors
+                                return the list of such columns to drop
+
+21. load the saved clustering model which was saved during the training and predict the clusters
+22. iterate through each clusters and find the correct model for the respective cluster we saved during the training(if (self.file.index(str( self.cluster_number))!=-1))
+23.load the model and predict the results and make a list of the results
+24. save the result to "Prediction_Output_File/Predictions.csv"'
+
+
+---------------------------------------------------------------------------DONE-----------------------------------------------------------------------------------------
+
+
+
+
